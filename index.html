@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mappa Interattiva di Madeira</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS for map display -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet JS for map functionality -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        /* Custom styles for the map and layout */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* Style for the sidebar to ensure it's scrollable and has a nice design */
+        #sidebar {
+            height: 100vh;
+            overflow-y: auto;
+            background-color: white;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Style for the list items in the sidebar */
+        .location-item {
+            cursor: pointer;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .location-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        .location-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Custom popup style */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+        }
+
+        .leaflet-popup-content {
+            margin: 0 !important;
+            width: 320px !important;
+            /* Fixed width for the popup */
+        }
+
+        /* Legend style */
+        .legend {
+            padding: 6px 8px;
+            font: 14px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            line-height: 18px;
+            color: #555;
+        }
+
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.9;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100">
+
+    <div class="flex">
+        <!-- Sidebar with the list of locations -->
+        <div id="sidebar" class="w-full md:w-1/3 lg:w-1/4 xl:w-1/5">
+            <div class="p-4 bg-gray-800 text-white sticky top-0 z-10">
+                <h1 class="text-2xl font-bold">Luoghi a Madeira</h1>
+                <p class="text-sm text-gray-300">Clicca su un luogo per vederlo sulla mappa</p>
+            </div>
+            <div id="location-list">
+                <!-- Location items will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- Map container -->
+        <div id="map" class="w-full md:w-2/3 lg:w-3/4 xl:w-4/5"></div>
+    </div>
+
+    <script>
+        // --- DATA: Locations in Madeira with full details ---
+        const locations = [
+            // 1. Funchal e Monte
+            {
+                name: "Centro storico di Funchal e Rua de Santa Maria",
+                lat: 32.6475,
+                lng: -16.9038,
+                group: "Funchal e Monte",
+                type: "Quartiere storico / passeggiata urbana",
+                geolocation_details: "Funchal centro - Rua de Santa Maria e vie adiacenti",
+                duration: "2-3 ore a piedi",
+                cost: "Gratuito (consigliato denaro per consumazioni)",
+                description: "Strade acciottolate con case colorate, bar, negozi e il progetto 'Painted Doors' con portoni decorati da artisti locali. Vicino si trova il Mercado dos Lavradores.",
+                tips: "Visitare al mattino o al tramonto per evitare il calore e le folle. Provare la frutta esotica 'Monstera deliciosa' solo se ben matura.",
+                what_to_bring: "Scarpe comode, ombrello in caso di pioggia.",
+                best_time: "Mattina o sera.",
+                crowd_level: "Alto nei periodi di crociere e weekend.",
+                to_avoid: "Non acquistare frutta sconosciuta senza chiedere come si consuma; evitare di parcheggiare nelle strisce gialle.",
+                coverUrl: "https://cdn.wander-lush.org/wp-content/uploads/2022/02/madeira-funchal-rua-de-santa-maria-painted-doors-2.jpg"
+            },
+            {
+                name: "Mercado dos Lavradores",
+                lat: 32.6481,
+                lng: -16.903,
+                group: "Funchal e Monte",
+                type: "Mercato coperto con prodotti locali",
+                geolocation_details: "Largo dos Lavradores 9060-158 Funchal",
+                duration: "1-1,5 ore",
+                cost: "Ingresso gratuito",
+                description: "Mercato inaugurato il 24 novembre 1940, con bancarelle di frutta, verdura, pesce e fiori. È considerato un 'museo vivente' dei sapori tropicali dell'isola.",
+                tips: "Contrattare il prezzo della frutta; fare attenzione ai venditori che offrono assaggi molto costosi; visitare al mattino.",
+                what_to_bring: "Borsa riutilizzabile per gli acquisti.",
+                best_time: "Mattina presto.",
+                crowd_level: "Medio-alto, soprattutto il sabato mattina.",
+                to_avoid: "Evitare di comprare frutta senza chiedere il prezzo; non fotografare le persone senza permesso.",
+                coverUrl: "https://www.madeira-guide.com/images/blog/mercado-dos-lavradores-madeira-island-1200.jpg"
+            },
+            {
+                name: "Funivia di Funchal (Teleférico do Funchal)",
+                lat: 32.648,
+                lng: -16.9015,
+                group: "Funchal e Monte",
+                type: "Impianto di risalita panoramico",
+                geolocation_details: "Stazione a valle presso Almirante Reis (Funchal)",
+                duration: "15 minuti per la salita; visita di Monte ~2 ore",
+                cost: "20 € a/r; 14,50 € solo andata",
+                description: "La funivia collega il centro di Funchal al quartiere collinare di Monte offrendo viste sul porto.",
+                tips: "Evitare le ore di punta quando arrivano le navi da crociera; combinare la salita con la visita al Monte Palace Tropical Garden o con la discesa in slitta.",
+                what_to_bring: "Giacca leggera (a Monte è più fresco); macchina fotografica.",
+                best_time: "Mattino limpido per vedere la baia.",
+                crowd_level: "Alto quando attraccano le crociere.",
+                to_avoid: "Non dimenticare di avere contanti per eventuali servizi a Monte.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/funchal-cable-car-2.jpg"
+            },
+            {
+                name: "Monte Palace Tropical Garden",
+                lat: 32.6749,
+                lng: -16.9009,
+                group: "Funchal e Monte",
+                type: "Giardino botanico e museo",
+                geolocation_details: "Caminho do Monte 174, Monte",
+                duration: "2-3 ore",
+                cost: "15 € per adulti; bambini <14 anni gratis",
+                description: "Giardino tropicale con laghetti, collezioni di azulejos, sculture africane e vista su Funchal. L'ingresso include due musei (minerali e sculture).",
+                tips: "Indossare scarpe comode per i sentieri ripidi; portare acqua; combinare con la discesa in slitta.",
+                what_to_bring: "Scarpe antiscivolo, cappello.",
+                best_time: "Mattino quando c'è meno folla.",
+                crowd_level: "Medio-alto, soprattutto in alta stagione.",
+                to_avoid: "Non alimentare gli animali presenti nel giardino; non toccare le opere d'arte.",
+                coverUrl: "https://www.themadeiraguide.com/wp-content/uploads/2022/10/Monte-Palace-Gardens-pagoda.jpg"
+            },
+            {
+                name: "Carreiros do Monte - slitta tradizionale",
+                lat: 32.676,
+                lng: -16.9026,
+                group: "Funchal e Monte",
+                type: "Esperienza tradizionale / discesa in slitta di vimini",
+                geolocation_details: "Partenza presso la chiesa di Nossa Senhora do Monte",
+                duration: "~10 minuti di discesa",
+                cost: "27,50 € (1 persona), 35 € (2 persone), 52,50 € (3 persone)",
+                description: "Discesa su strada in carrozzine di vimini pilotate da due 'carreiros'. Attrazione storica nata nell'Ottocento. L'arrivo è a Livramento, da cui è necessario prendere un taxi o bus.",
+                tips: "Portare contanti (non si accettano carte); arrivare al mattino per evitare lunghe file.",
+                what_to_bring: "Scarpe chiuse, giacca leggera.",
+                best_time: "Mattina o primo pomeriggio (lun-sab 09:00-18:00).",
+                crowd_level: "Elevato nelle ore centrali della giornata.",
+                to_avoid: "Non sporgere le mani fuori dalla slitta; non salire se piove forte.",
+                coverUrl: "https://www.carreirosdomonte.com/v3/img/og-img.jpg"
+            },
+            {
+                name: "CR7 Museum (Museo Cristiano Ronaldo)",
+                lat: 32.6433,
+                lng: -16.914,
+                group: "Funchal e Monte",
+                type: "Museo tematico",
+                geolocation_details: "Rua Princesa Dona Amélia 10, porto di Funchal",
+                duration: "30 minuti - 1 ora",
+                cost: "5 € (solo contanti)",
+                description: "Museo sulla carriera del campione nato a Madeira con trofei, palloni d'oro e una statua all'esterno.",
+                tips: "Arrivare all'apertura per evitare code.",
+                what_to_bring: "Nessun requisito particolare.",
+                best_time: "Mattino; a mezzogiorno ci sono meno visitatori.",
+                crowd_level: "Alto in estate e nelle vacanze scolastiche.",
+                to_avoid: "Non toccare i trofei; non portare zaini voluminosi.",
+                coverUrl: "https://media.tacdn.com/media/attractions-splice-spp-674x446/06/71/70/93.jpg"
+            },
+            {
+                name: "Blandy's Wine Lodge",
+                lat: 32.6473,
+                lng: -16.9088,
+                group: "Funchal e Monte",
+                type: "Tour e degustazione di vino Madeira",
+                geolocation_details: "Avenida Arriaga 28, Funchal (centro)",
+                duration: "30-105 minuti a seconda del tour",
+                cost: "Da 10,50 € a oltre 100 € a seconda del pacchetto",
+                description: "Antica cantina del XVIII secolo dove scoprire la storia del vino Madeira attraverso tour e degustazioni.",
+                tips: "Prenotare in anticipo nelle ore di punta; scegliere il tour adatto (Basic, Premium, Vintage).",
+                what_to_bring: "Documento d'identità per l'acquisto di alcolici.",
+                best_time: "Pomeriggio per degustare vini dopo pranzo.",
+                crowd_level: "Medio.",
+                to_avoid: "Non guidare dopo le degustazioni.",
+                coverUrl: "https://files.synxis.com/images/sites/92/20230302111155987.jpg"
+            },
+            // 2. Costa Sud
+            {
+                name: "Câmara de Lobos",
+                lat: 32.6478,
+                lng: -16.9745,
+                group: "Costa Sud",
+                type: "Villaggio di pescatori / borgo pittoresco",
+                geolocation_details: "Circa 7 km a ovest di Funchal",
+                duration: "1-2 ore",
+                cost: "Gratuito",
+                description: "Piccolo porto famoso per le barche colorate (xavelhas) e per essere stato ritratto da Winston Churchill. Ideale per assaggiare la poncha.",
+                tips: "Visitare al tramonto per colori suggestivi; assaggiare la poncha ma non guidare dopo.",
+                what_to_bring: "Scarpe comode, giacca per la sera.",
+                best_time: "Fine pomeriggio/sera.",
+                crowd_level: "Medio-alto nei weekend.",
+                to_avoid: "Non parcheggiare nelle vie strette del centro; evitare poncha troppo cara.",
+                coverUrl: "https://www.heartofmadeira.com/media/1217/camara-de-lobos-madeira-island.jpg"
+            },
+            {
+                name: "Cabo Girão Skywalk",
+                lat: 32.6568,
+                lng: -17.0019,
+                group: "Costa Sud",
+                type: "Piattaforma panoramica con pavimento di vetro",
+                geolocation_details: "Promontorio a 580 m s.l.m. sopra Câmara de Lobos",
+                duration: "30-45 min",
+                cost: "2-3 €",
+                description: "Piattaforma con pavimento trasparente sospesa su uno dei promontori costieri più alti d'Europa, con vista su Funchal.",
+                tips: "Arrivare la mattina presto o tardo pomeriggio per evitare bus turistici.",
+                what_to_bring: "Scarpe chiuse, occhiali da sole.",
+                best_time: "Mattina o tramonto.",
+                crowd_level: "Molto turistico in alta stagione.",
+                to_avoid: "Non appoggiarsi oltre la barriera; evitare le ore centrali.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/cabo-girao-madeira-3.jpg"
+            },
+            {
+                name: "Cabo Girão Cable Car (Teleférico do Rancho)",
+                lat: 32.6551,
+                lng: -17.0097,
+                group: "Costa Sud",
+                type: "Piccola funivia per litorale",
+                geolocation_details: "Località Rancho, a pochi minuti dallo skywalk",
+                duration: "5 minuti a tratta + tempo in spiaggia",
+                cost: "Circa 3 € a/r (solo contanti)",
+                description: "Piccola cabina che scende a una spiaggia isolata con terrazze coltivate (Fajãs do Cabo Girão).",
+                tips: "Verificare gli orari e portare contanti; la funivia chiude per pranzo e con vento forte.",
+                what_to_bring: "Scarpe comode, acqua e snack (nessun bar in spiaggia).",
+                best_time: "Mattina presto.",
+                crowd_level: "Medio; attesa a mezzogiorno.",
+                to_avoid: "Non scendere se la funivia è chiusa per vento.",
+                coverUrl: "https://i.ytimg.com/vi/S-S-sflTvxM/maxresdefault.jpg"
+            },
+            {
+                name: "Cascata dos Anjos (Angels' Waterfall)",
+                lat: 32.6841,
+                lng: -17.0699,
+                group: "Costa Sud",
+                type: "Cascata che cade su una strada costiera",
+                geolocation_details: "Vecchia strada costiera ER101 tra Ponta do Sol e Madalena do Mar",
+                duration: "20-30 min",
+                cost: "Gratuito",
+                description: "Cascata che scende direttamente sulla vecchia strada litoranea ER101. La strada è ufficialmente chiusa al traffico per rischio frane ma è accessibile a piedi.",
+                tips: "Visitare dopo periodi di pioggia per un flusso maggiore. Parcheggiare nel tunnel prima della cascata e proseguire a piedi.",
+                what_to_bring: "Scarpe impermeabili, impermeabile.",
+                best_time: "Pomeriggio soleggiato dopo la pioggia.",
+                crowd_level: "Basso, popolare tra fotografi.",
+                to_avoid: "Non stare sotto la cascata per rischio di sassi cadenti.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/cascata-dos-anjos-4.jpg"
+            },
+            {
+                name: "Ponta do Sol",
+                lat: 32.6806,
+                lng: -17.1044,
+                group: "Costa Sud",
+                type: "Villaggio costiero / relax in spiaggia",
+                geolocation_details: "Zona sud-ovest dell'isola",
+                duration: "Mezza giornata",
+                cost: "Gratuito (spiaggia pubblica)",
+                description: "Tranquillo borgo noto per il suo clima soleggiato e per i suggestivi tramonti, con una piccola spiaggia di ciottoli e un molo.",
+                tips: "Ammirare il tramonto dal piccolo molo.",
+                what_to_bring: "Costume da bagno, protezione solare.",
+                best_time: "Pomeriggio per prendere il sole e godere del tramonto.",
+                crowd_level: "Medio-alto in estate.",
+                to_avoid: "Non sottovalutare le correnti.",
+                coverUrl: "https://lp-cms-production.imgix.net/2022-05/shutterstock_1184852923.jpg"
+            },
+            {
+                name: "Calheta",
+                lat: 32.7214,
+                lng: -17.1722,
+                group: "Costa Sud",
+                type: "Villaggio costiero / relax in spiaggia",
+                geolocation_details: "Zona sud-ovest dell'isola",
+                duration: "Mezza giornata",
+                cost: "Gratuito (spiaggia pubblica)",
+                description: "Offre una delle due spiagge di sabbia dorata artificiale di Madeira, con servizi, ristoranti e un porto turistico. Ospita anche l'Engenho da Calheta.",
+                tips: "Visitare la distilleria Engenho da Calheta e assaggiare il rum.",
+                what_to_bring: "Costume da bagno, protezione solare.",
+                best_time: "Pomeriggio per prendere il sole.",
+                crowd_level: "Medio-alto in estate.",
+                to_avoid: "Non guidare dopo la degustazione di rum.",
+                coverUrl: "https://www.madeira-holidays.com/images/locations/calheta/madeira-calheta-beach.jpg"
+            },
+            {
+                name: "Engenho da Calheta",
+                lat: 32.7208,
+                lng: -17.173,
+                group: "Costa Sud",
+                type: "Museo della canna da zucchero / distilleria",
+                geolocation_details: "Rua da Fábrica da Aguardente, Calheta",
+                duration: "30 min - 1 ora",
+                cost: "Ingresso gratuito; degustazioni a pagamento",
+                description: "Struttura storica di fine XIX secolo che produce rum ('aguardente') e melassa utilizzando macchinari d'epoca a vapore.",
+                tips: "Visitare durante la stagione di distillazione (dopo Pasqua) per vedere i macchinari in funzione.",
+                what_to_bring: "Abbigliamento casual.",
+                best_time: "Primavera (stagione della canna da zucchero).",
+                crowd_level: "Basso-medio.",
+                to_avoid: "Non toccare le macchine in funzione; non consumare rum se si deve guidare.",
+                coverUrl: "https://www.visitmadeira.com/media/gjglnk2a/engenho-da-calheta-2-vm.jpg?width=1600&height=1067&mode=crop&quality=80"
+            },
+            {
+                name: "Cristo Rei di Garajau",
+                lat: 32.6377,
+                lng: -16.852,
+                group: "Costa Sud",
+                type: "Statua panoramica e funivia",
+                geolocation_details: "Ponta do Garajau, Caniço",
+                duration: "1-2 ore",
+                cost: "Accesso gratuito alla statua; funivia per la spiaggia 3€ a/r",
+                description: "Statua del Cristo Rei (14 m) che domina la scogliera. Una funivia conduce alla spiaggia di ciottoli sottostante, parte di una riserva naturale marina.",
+                tips: "Portare monete per pagare la funivia; scendere in spiaggia solo con mare calmo.",
+                what_to_bring: "Scarpe comode, crema solare, acqua.",
+                best_time: "Mattina presto o tramonto.",
+                crowd_level: "Medio; meno affollato di Cabo Girão.",
+                to_avoid: "Non avvicinarsi troppo al bordo della scogliera.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/cristo-rei-madeira-1.jpg"
+            },
+            // 3. Costa Ovest e altipiani
+            {
+                name: "Bica da Cana Viewpoint",
+                lat: 32.756,
+                lng: -17.031,
+                group: "Costa Ovest e altipiani",
+                type: "Punto panoramico / breve passeggiata",
+                geolocation_details: "Altopiano di Paúl da Serra (ER110), 1580 m di quota",
+                duration: "10-20 min di cammino dal parcheggio",
+                cost: "Gratuito",
+                description: "Belvedere con vista a 360° sulla valle di São Vicente, la Laurissilva e le vette più alte dell'isola. Ideale per ammirare l'alba sopra un 'mare di nuvole'.",
+                tips: "Controllare webcam e meteo prima della visita; arrivare 30 min prima dell'alba.",
+                what_to_bring: "Scarpe da trekking, giacca a vento, torcia per l'alba.",
+                best_time: "Alba o tramonto.",
+                crowd_level: "Basso; qualche fotografo.",
+                to_avoid: "Non avvicinarsi troppo al bordo se c'è nebbia.",
+                coverUrl: "https://i0.wp.com/digitaltravelcouple.com/wp-content/uploads/2021/01/bica-da-cana-viewpoint-madeira.jpg"
+            },
+            {
+                name: "Fanal Forest (Laurissilva)",
+                lat: 32.793,
+                lng: -17.147,
+                group: "Costa Ovest e altipiani",
+                type: "Foresta primaria / trekking facile",
+                geolocation_details: "Altopiano di Paúl da Serra (parco del Fanal)",
+                duration: "1-2 ore",
+                cost: "3 € (permesso SIMplifica per il trekking PR13)",
+                description: "Foresta di lauri millenari (Ocotea foetens) spesso avvolta da una nebbia suggestiva, che crea un'atmosfera fiabesca. Parte del percorso PR13.",
+                tips: "Portare abbigliamento caldo, la zona è spesso fredda e umida. Attenzione agli escrementi delle mucche al pascolo.",
+                what_to_bring: "Stivali impermeabili, giacca, macchina fotografica.",
+                best_time: "Mattina presto quando la nebbia crea atmosfera.",
+                crowd_level: "Basso-medio.",
+                to_avoid: "Non disturbare gli animali al pascolo; non prelevare muschi o piante.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/fanal-forest-madeira-1.jpg"
+            },
+            {
+                name: "Porto Moniz - Piscine Naturali",
+                lat: 32.868,
+                lng: -17.168,
+                group: "Costa Ovest e altipiani",
+                type: "Complesso balneare naturale",
+                geolocation_details: "Centro di Porto Moniz",
+                duration: "1-3 ore",
+                cost: "3 € per il complesso principale; gratuito per le piscine Cachalote",
+                description: "Piscine di origine vulcanica con acqua di mare. Il complesso principale è attrezzato con solarium e servizi, mentre le vicine piscine Cachalote sono più naturali.",
+                tips: "Scegliere le Piscine Cachalote per un'esperienza più selvaggia. Arrivare presto per trovare parcheggio.",
+                what_to_bring: "Costume da bagno, crema solare, scarpe da scoglio.",
+                best_time: "Metà mattina o primo pomeriggio.",
+                crowd_level: "Alto nelle piscine principali; medio nelle Cachalote.",
+                to_avoid: "Non nuotare vicino alle rocce con mare agitato.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/porto-moniz-natural-pools-1.jpg"
+            },
+            {
+                name: "Seixal Beach (Praia do Porto do Seixal)",
+                lat: 32.825,
+                lng: -17.109,
+                group: "Costa Ovest e altipiani",
+                type: "Spiaggia di sabbia nera",
+                geolocation_details: "Villaggio di Seixal, costa nord-occidentale",
+                duration: "1-3 ore",
+                cost: "Gratuito",
+                description: "Suggestiva spiaggia di sabbia nera naturale incastonata in un panorama di scogliere verdi e cascate.",
+                tips: "Buon punto per l'alba poiché la spiaggia è rivolta a est. Combinare con la visita alle vicine piscine naturali.",
+                what_to_bring: "Costume, asciugamano.",
+                best_time: "Mattina presto o giornata poco ventosa.",
+                crowd_level: "Medio; nel weekend può essere affollato.",
+                to_avoid: "Parcheggio molto limitato, arrivare presto.",
+                coverUrl: "https://www.picturetheworld.co/wp-content/uploads/2021/08/DJI_0421-1.jpg"
+            },
+            {
+                name: "Seixal Natural Pools (Poças das Lesmas)",
+                lat: 32.828,
+                lng: -17.104,
+                group: "Costa Ovest e altipiani",
+                type: "Piscine naturali",
+                geolocation_details: "Villaggio di Seixal, costa nord-occidentale",
+                duration: "1-3 ore",
+                cost: "Gratuito",
+                description: "Piscine naturali formate da archi di lava, con acqua cristallina. I servizi igienici e il chiosco nelle vicinanze possono essere chiusi.",
+                tips: "Combinare la visita alla spiaggia e alle piscine (distano 1,5 km).",
+                what_to_bring: "Costume, scarpe da scoglio, asciugamano.",
+                best_time: "Mattina presto o giornata poco ventosa.",
+                crowd_level: "Medio.",
+                to_avoid: "Non avvicinarsi al bordo delle piscine quando il mare è mosso.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/seixal-natural-pools-1.jpg"
+            },
+            {
+                name: "Achadas da Cruz Cable Car",
+                lat: 32.846,
+                lng: -17.209,
+                group: "Costa Ovest e altipiani",
+                type: "Funivia panoramica verso la fajã costiera",
+                geolocation_details: "Località Achadas da Cruz",
+                duration: "5 minuti a tratta + tempo per esplorare",
+                cost: "5 € a/r",
+                description: "Una delle funivie più ripide d'Europa (quasi 98% di pendenza) che scende a Fajã da Quebrada Nova, una valle coltivata e una spiaggia di ciottoli. La zona non è abitata e conserva un fascino selvaggio.",
+                tips: "Controllare il vento; in alta stagione le code possono essere lunghe. Portare cibo e acqua (non ci sono servizi in basso).",
+                what_to_bring: "Scarpe da trekking, crema solare, cappello, acqua.",
+                best_time: "Mattina o tardo pomeriggio.",
+                crowd_level: "Medio; poche persone visitano la fajã.",
+                to_avoid: "Non prendere la funivia se si soffre di vertigini.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/achadas-da-cruz-cable-car-1.jpg"
+            },
+            // 4. Costa Nord
+            {
+                name: "Santana - Case Tipiche",
+                lat: 32.805,
+                lng: -16.882,
+                group: "Costa Nord",
+                type: "Borgo con case a tetto di paglia (palheiros)",
+                geolocation_details: "Centro di Santana",
+                duration: "30 min - 1 ora",
+                cost: "Gratuito",
+                description: "Le tipiche case triangolari dal tetto di paglia (palheiros) sono il simbolo di Santana. Alcune sono state trasformate in negozi di artigianato.",
+                tips: "Visitare di mattina quando è meno affollato; acquistare prodotti locali.",
+                what_to_bring: "Nessuna esigenza particolare.",
+                best_time: "Mattina.",
+                crowd_level: "Medio, soprattutto con tour organizzati.",
+                to_avoid: "Non oltrepassare le recinzioni delle case private.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/santana-madeira-houses-1.jpg"
+            },
+            {
+                name: "PR18 Levada do Rei",
+                lat: 32.793,
+                lng: -16.893,
+                group: "Costa Nord",
+                type: "Percorso naturalistico (levada)",
+                geolocation_details: "Partenza presso l'impianto di trattamento delle acque di Quebradas (São Jorge)",
+                duration: "3,5 ore (10,6 km a/r)",
+                cost: "3 € per visitatori > 12 anni",
+                description: "Percorso facile-moderato che segue la levada tra foreste di lauri fino al santuario naturale di Ribeiro Bonito.",
+                tips: "Portare torcia per i brevi tunnel; pagare il permesso tramite il portale SIMplifica.",
+                what_to_bring: "Scarpe da trekking, giacca impermeabile, torcia.",
+                best_time: "Mattina per evitare pioggia pomeridiana.",
+                crowd_level: "Medio.",
+                to_avoid: "Non lasciare il sentiero per non danneggiare la vegetazione.",
+                coverUrl: "https://www.madeirahikers.com/wp-content/uploads/2021/04/levada-do-rei-hike.jpg"
+            },
+            {
+                name: "PR11 Vereda dos Balcões",
+                lat: 32.738,
+                lng: -16.92,
+                group: "Costa Nord",
+                type: "Passeggiata panoramica breve",
+                geolocation_details: "Inizio presso la stazione ER103 di Ribeiro Frio",
+                duration: "1,5 ore (3 km a/r)",
+                cost: "3 € (> 12 anni)",
+                description: "Cammino facile e pianeggiante che attraversa la foresta e termina al balcone panoramico con vista sulle montagne centrali (Pico do Arieiro, Pico Ruivo).",
+                tips: "Portare binocolo per osservare uccelli come il fringuello di Madeira; adatto a tutte le età.",
+                what_to_bring: "Scarpe da trekking, impermeabile.",
+                best_time: "Mattina.",
+                crowd_level: "Basso-medio.",
+                to_avoid: "Non avvicinarsi al bordo del balcone; non dare cibo agli animali.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/vereda-dos-balcoes-1.jpg"
+            },
+            {
+                name: "PR9 Levada do Caldeirão Verde",
+                lat: 32.784,
+                lng: -16.911,
+                group: "Costa Nord",
+                type: "Levada di media difficoltà",
+                geolocation_details: "Partenza al Parque Florestal das Queimadas (Santana)",
+                duration: "6,5 ore a/r (17,4 km)",
+                cost: "3 € (> 12 anni); parcheggio 2 €/h",
+                description: "Sentiero che segue una levada all'interno della Laurissilva, attraversando quattro tunnel e terminando presso l'imponente cascata di Caldeirão Verde.",
+                tips: "Portare torcia potente; fare attenzione nei tunnel (altezze ridotte) e ai dirupi.",
+                what_to_bring: "Scarpe da trekking impermeabili, torcia frontale.",
+                best_time: "Mattina.",
+                crowd_level: "Medio; popolare tra escursionisti.",
+                to_avoid: "Non affrontare il percorso se si soffre di claustrofobia o vertigini.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/levada-do-caldeirao-verde-1.jpg"
+            },
+            // 5. Costa Est
+            {
+                name: "Machico Bay Beach",
+                lat: 32.716,
+                lng: -16.764,
+                group: "Costa Est",
+                type: "Spiaggia di sabbia dorata artificiale",
+                geolocation_details: "Baia di Machico",
+                duration: "1-3 ore",
+                cost: "Gratuito (lettini e ombrelloni a pagamento)",
+                description: "Una delle due spiagge con sabbia dorata importata dal Marocco. Protetta da moli, con acqua calma ideale per famiglie.",
+                tips: "Arrivare presto nei weekend; abbinare la visita al centro storico di Machico.",
+                what_to_bring: "Costume, sandali, protezione solare.",
+                best_time: "Mattina o tardo pomeriggio.",
+                crowd_level: "Alto nei fine settimana.",
+                to_avoid: "Evitare l'ora di punta tra le 12 e le 15.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/machico-beach-1.jpg"
+            },
+            {
+                name: "Ponta de São Lourenço (PR8)",
+                lat: 32.744,
+                lng: -16.7,
+                group: "Costa Est",
+                type: "Trekking costiero su penisola vulcanica",
+                geolocation_details: "Punta orientale dell'isola, partenza da Baía d'Abra",
+                duration: "2,5-4 ore (7,5 km a/r)",
+                cost: "3 € per non residenti > 12 anni",
+                description: "Sentiero su un promontorio arido con panorami spettacolari sull'oceano e sulle formazioni rocciose vulcaniche. Vegetazione quasi desertica.",
+                tips: "Portare acqua, cappello e crema solare (sentiero senza ombra); arrivare presto per parcheggiare.",
+                what_to_bring: "Scarpe da trekking, cappello, occhiali da sole, molta acqua.",
+                best_time: "Mattina presto o tardo pomeriggio per evitare il caldo.",
+                crowd_level: "Medio-alto.",
+                to_avoid: "Non percorrere il sentiero nelle ore più calde; non uscire dal tracciato.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/ponta-de-sao-lourenco-1.jpg"
+            },
+            // 6. Montagne Centrali e Laurissilva
+            {
+                name: "Pico do Arieiro",
+                lat: 32.734,
+                lng: -16.929,
+                group: "Montagne Centrali e Laurissilva",
+                type: "Cima accessibile in auto / punto panoramico",
+                geolocation_details: "Terza vetta dell'isola, 1818 m s.l.m.",
+                duration: "30 min (visita); 4-6 ore (trekking PR1)",
+                cost: "Ingresso gratuito; parcheggio a pagamento",
+                description: "Accessibile in auto, offre viste spettacolari e spesso si trova sopra le nuvole. È il punto di partenza del famoso trekking PR1 verso Pico Ruivo.",
+                tips: "Arrivare almeno un'ora prima dell'alba per trovare parcheggio; portare abbigliamento caldo (la temperatura può scendere notevolmente).",
+                what_to_bring: "Giacca a vento, cappello, guanti.",
+                best_time: "Alba o tramonto.",
+                crowd_level: "Alto all'alba e nelle giornate limpide.",
+                to_avoid: "Non avvicinarsi ai bordi senza protezione.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/pico-do-arieiro-1.jpg"
+            },
+            {
+                name: "PR1.2 Achada do Teixeira - Pico Ruivo",
+                lat: 32.766,
+                lng: -16.918,
+                group: "Montagne Centrali e Laurissilva",
+                type: "Trekking moderato per raggiungere la vetta più alta",
+                geolocation_details: "Partenza da Achada do Teixeira (Santana)",
+                duration: "1,5 ore andata (2,8 km)",
+                cost: "3 € (> 12 anni)",
+                description: "Il percorso più facile per raggiungere Pico Ruivo (1862 m), la vetta più alta dell'isola. Sentiero lastricato con pendenza moderata.",
+                tips: "Portare torcia se si parte prima dell'alba; acquistare il permesso online; portare giacca calda.",
+                what_to_bring: "Scarpe da trekking, bastoncini, abbigliamento a strati.",
+                best_time: "Alba per punti panoramici straordinari.",
+                crowd_level: "Medio.",
+                to_avoid: "Non camminare in condizioni di maltempo.",
+                coverUrl: "https://www.madeira-a-z.com/wp-content/uploads/2020/01/pico-ruivo-1.jpg"
+            }
+        ];
+
+        // --- MAP INITIALIZATION ---
+        const map = L.map('map').setView([32.7600, -16.9500], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        // --- ICONS AND COLORS ---
+        const colorMapping = {
+            "Funchal e Monte": "blue",
+            "Costa Sud": "green",
+            "Costa Ovest e altipiani": "red",
+            "Costa Nord": "orange",
+            "Costa Est": "violet",
+            "Montagne Centrali e Laurissilva": "gold"
+        };
+
+        function createIcon(color) {
+            return new L.Icon({
+                iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+        }
+
+        const icons = Object.keys(colorMapping).reduce((acc, key) => {
+            acc[colorMapping[key]] = createIcon(colorMapping[key]);
+            return acc;
+        }, {});
+
+        // --- POPULATE SIDEBAR AND MAP MARKERS ---
+        const markers = {};
+        const locationList = document.getElementById('location-list');
+        let currentGroup = "";
+
+        // Function to create the detailed popup content
+        function createPopupContent(location) {
+            let content = `<div class="p-4 max-h-80 overflow-y-auto text-gray-700">`;
+
+
+            content += `<h3 class="font-bold text-lg mb-2 text-gray-900">${location.name}</h3>`;
+
+            // Pulsante Google Maps con coordinate
+            const gmapsUrlCoords = `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lng}`;
+            content += `<a href="${gmapsUrlCoords}" target="_blank" rel="noopener" class="inline-block mb-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm font-medium mr-2">
+                <span class="text-white">Apri Maps (Coordinate)</span>
+            </a>`;
+
+            // Pulsante Google Maps con nome
+            const gmapsUrlName = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.name)}`;
+            content += `<a href="${gmapsUrlName}" target="_blank" rel="noopener" class="inline-block mb-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm font-medium">
+                <span class="text-white">Apri Maps (Nome)</span>
+            </a>`;
+
+            const fields = [
+                { label: 'Tipologia', value: location.type },
+                { label: 'Geolocalizzazione', value: location.geolocation_details },
+                { label: 'Descrizione', value: location.description },
+                { label: 'Durata', value: location.duration },
+                { label: 'Costo', value: location.cost },
+                { label: 'Consigli utili', value: location.tips },
+                { label: 'Da portare', value: location.what_to_bring },
+                { label: 'Momento migliore', value: location.best_time },
+                { label: 'Affollamento', value: location.crowd_level },
+                { label: 'Da evitare', value: location.to_avoid }
+            ];
+
+            fields.forEach(field => {
+                if (field.value) {
+                    content += `<p class="my-1.5 text-sm"><strong class="font-semibold text-gray-800">${field.label}:</strong> ${field.value}</p>`;
+                }
+            });
+
+            content += `</div>`;
+            return content;
+        }
+
+        locations.forEach(location => {
+            if (location.group !== currentGroup) {
+                currentGroup = location.group;
+                const groupHeader = document.createElement('div');
+                groupHeader.className = 'p-4 bg-gray-200 text-gray-800 font-bold sticky top-0';
+                groupHeader.textContent = currentGroup;
+                locationList.appendChild(groupHeader);
+            }
+
+            const listItem = document.createElement('div');
+            listItem.className = 'location-item';
+            listItem.textContent = location.name;
+            listItem.onclick = () => {
+                map.flyTo([location.lat, location.lng], 14);
+                markers[location.name].openPopup();
+            };
+            locationList.appendChild(listItem);
+
+            const markerColor = colorMapping[location.group] || 'blue';
+            const marker = L.marker([location.lat, location.lng], { icon: icons[markerColor] }).addTo(map)
+                .bindPopup(createPopupContent(location));
+
+            markers[location.name] = marker;
+        });
+
+        // --- LEGEND CONTROL ---
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function (map) {
+            const div = L.DomUtil.create('div', 'info legend');
+            const groups = Object.keys(colorMapping);
+            let labels = ['<strong>Legenda Aree</strong>'];
+            groups.forEach(group => {
+                labels.push(
+                    `<i style="background-image: url(https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMapping[group]}.png); background-size: contain;"></i> ${group}`
+                );
+            });
+            div.innerHTML = labels.join('<br>');
+            return div;
+        };
+        legend.addTo(map);
+
+        // --- RESPONSIVE BEHAVIOR ---
+        const sidebar = document.getElementById('sidebar');
+        const mapContainer = document.getElementById('map');
+        function checkScreenSize() {
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('hidden');
+                mapContainer.classList.remove('md:w-2/3', 'lg:w-3/4', 'xl:w-4/5');
+            } else {
+                sidebar.classList.remove('hidden');
+                mapContainer.classList.add('md:w-2/3', 'lg:w-3/4', 'xl:w-4/5');
+            }
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+    </script>
+</body>
+
+</html>
